@@ -1,2 +1,2 @@
-# varia-db
+# VariaDB
 VariaDB | Key-Value Storage

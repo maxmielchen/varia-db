@@ -32,7 +32,6 @@ async fn main() {
     println!("Starting server...");
 
     let storage = Arc::new(Mutex::new(Storage::new()));
-    storage.lock().unwrap().set("test".to_string(), Value::Text("Hello, world!".to_string()));
     println!("Storage created");
 
     let listener = TcpListener::bind("127.0.0.1:6543").await.expect("Failed to start server on port 6543");
@@ -91,8 +90,24 @@ async fn main() {
                     }
                 }
 
-                
-                
+                if input.starts_with("set") {
+                    let mut input = input.split_whitespace();
+                    input.next();
+
+                    let key = input.next();
+                    let value = input.next();
+
+                    if key == None || value == None {
+                        eprintln!("No key or value provided");
+                        continue;
+                    }
+
+                    let key = key.unwrap().to_string();
+                    let value = value.unwrap().to_string();
+
+                    let mut storage_lock = storage.lock().unwrap();
+                    storage_lock.set(key, Value::Text(value));
+                }
             }
         });
     }

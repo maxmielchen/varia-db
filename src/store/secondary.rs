@@ -1,4 +1,6 @@
-use std::{path::{PathBuf, Path}, fs::{create_dir_all, File, remove_file}, io::{Error, Write, BufReader}};
+use std::{path::{PathBuf, Path}, fs::{create_dir_all, File, remove_file}, io::{Error, Write, BufReader, ErrorKind}};
+
+use log::error;
 
 use super::Value;
 
@@ -8,7 +10,17 @@ pub struct Secondary {
 
 impl Secondary {
     pub fn new(path: &Path) -> Result<Self, Error> {
-        create_dir_all(path)?;
+        if path.exists() {
+            if !path.is_dir() {
+                error!("Path {:?} is not a directory", path);
+                return Err(Error::new(
+                    ErrorKind::InvalidInput,
+                    format!("Path {:?} is not a directory", path)
+                ));
+            }
+        } else {
+            create_dir_all(path)?;
+        }
         Ok(Self {
             path: path.to_path_buf(),
         })

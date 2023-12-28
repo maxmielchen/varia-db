@@ -4,7 +4,7 @@ use crate::store::Value;
 
 #[derive(Deserialize)]
 pub enum Request {
-    Set(String, Value),
+    Put(String, Value),
     Get(String),
     Del(String),
     List,

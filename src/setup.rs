@@ -6,13 +6,12 @@ use log::Level;
 use crate::{store::{Secondary, Primary, Engine}, server::Server};
 
 pub fn log() {
-    println!(" __      __        _       _____  ____  ");
-    println!(" \\ \\    / /       (_)     |  __ \\|  _ \\ ");
-    println!("  \\ \\  / /_ _ _ __ _  __ _| |  | | |_) |");
-    println!("   \\ \\/ / _` | '__| |/ _` | |  | |  _ < ");
-    println!("    \\  / (_| | |  | | (_| | |__| | |_) |");
-    println!("     \\/ \\__,_|_|  |_|\x5C__,_|_____/|____/ ");
-    println!("");
+    println!(" _    __           _       ____  ____ ");
+    println!("| |  / /___ ______(_)___ _/ __ \\/ __ )");
+    println!("| | / / __ `/ ___/ / __ `/ / / / __  |");
+    println!("| |/ / /_/ / /  / / /_/ / /_/ / /_/ / ");
+    println!("|___/\\__,_/_/  /_/\\__,_/_____/_____/  ");
+    println!("______________________________________");
 
     SimpleLogger::new()
         .with_level(Level::Debug.to_level_filter())

@@ -5,13 +5,48 @@ use log::Level;
 
 use crate::{store::{Secondary, Primary, Engine}, server::WebServer};
 
-pub fn setup_log(level: Level) {
+use std::env;
+
+#[derive(Debug)]
+pub struct Configuration {
+    pub log_level: Level,
+    pub data_dir: String,
+    pub port: u16
+}
+
+impl Configuration {
+
+    pub fn new() -> Self {
+        let log_level = match env::var("LOG_LEVEL").expect("LOG_LEVEL not set").as_str() {
+            "error" => log::Level::Error,
+            "warn" => log::Level::Warn,
+            "info" => log::Level::Info,
+            "debug" => log::Level::Debug,
+            "trace" => log::Level::Trace,
+            _ => log::Level::Info,
+        };
+        let data_dir = env::var("DATA_DIR").expect("DATA_DIR not set");
+        let port = env::var("PORT").expect("PORT not set").parse::<u16>().expect("PORT is not a valid number");
+        Self {
+            log_level,
+            data_dir,
+            port
+        }
+    }
+}
+
+pub fn start_log(configuration: &Configuration) {
     println!(" _    __           _       ____  ____ ");
     println!("| |  / /___ ______(_)___ _/ __ \\/ __ )");
     println!("| | / / __ `/ ___/ / __ `/ / / / __  |");
     println!("| |/ / /_/ / /  / / /_/ / /_/ / /_/ / ");
     println!("|___/\\__,_/_/  /_/\\__,_/_____/_____/  ");
-    println!("______________________________________");
+    println!("--------------------------------------");
+    println!("{:?}", configuration);
+    println!("--------------------------------------");
+}
+
+pub fn setup_log(level: Level) {
 
     SimpleLogger::new()
         .with_level(level.to_level_filter())

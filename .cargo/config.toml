@@ -1,0 +1,4 @@
+[env]
+LOG_LEVEL = "info"
+DATA_DIR = { value = "target/data", relative = true}
+PORT = "8654"

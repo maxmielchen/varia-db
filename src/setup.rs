@@ -14,7 +14,7 @@ pub fn log() {
     println!("______________________________________");
 
     SimpleLogger::new()
-        .with_level(Level::Debug.to_level_filter())
+        .with_level(Level::Info.to_level_filter())
         .init().expect("Logger failed to initialize");
 }
 

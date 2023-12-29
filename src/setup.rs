@@ -3,9 +3,9 @@ use std::path::Path;
 use simple_logger::SimpleLogger;
 use log::Level;
 
-use crate::{store::{Secondary, Primary, Engine}, server::Server};
+use crate::{store::{Secondary, Primary, Engine}, server::WebServer};
 
-pub fn log(level: Level) {
+pub fn setup_log(level: Level) {
     println!(" _    __           _       ____  ____ ");
     println!("| |  / /___ ______(_)___ _/ __ \\/ __ )");
     println!("| | / / __ `/ ___/ / __ `/ / / / __  |");
@@ -18,7 +18,7 @@ pub fn log(level: Level) {
         .init().expect("Logger failed to initialize");
 }
 
-pub fn secondary(path: String) -> Secondary {
+pub fn setup_secondary(path: String) -> Secondary {
     let secondary = Secondary::new(
         Path::new(path.as_str())
     );
@@ -28,14 +28,14 @@ pub fn secondary(path: String) -> Secondary {
     secondary.unwrap()
 }
 
-pub fn primary() -> Primary {
+pub fn setup_primary() -> Primary {
     Primary::new()
 }
 
-pub fn engine(secondary: Secondary, primary: Primary) -> Engine {
+pub fn setup_engine(secondary: Secondary, primary: Primary) -> Engine {
     Engine::new(secondary, primary)
 }
 
-pub async fn server(engine: Engine, port: u16) -> Server {
-    Server::new(engine, port).await
+pub async fn setup_web_server(engine: Engine, port: u16) -> WebServer {
+    WebServer::new(engine, port).await
 }

@@ -12,7 +12,7 @@ use crate::store::Engine;
 use super::EngineService;
 
 #[allow(dead_code)]
-pub struct Server {
+pub struct WebServer {
     engine: Arc<Mutex<Engine>>,
     addr: SocketAddr,
     tcp_listener: TcpListener,
@@ -20,7 +20,7 @@ pub struct Server {
     service: EngineService,
 }
 
-impl Server {
+impl WebServer {
 
     pub async fn new(engine: Engine, port: u16) -> Self {
         info!("Setting up server...");

@@ -7,7 +7,7 @@ use serde_json::Error as SerdeError;
 
 
 use crate::store::Engine;
-use super::{Request, Respond};
+use super::{Request as DeserializedRequest, Respond as SerializedRespond};
 
 use log::error;
 
@@ -34,107 +34,147 @@ impl Service<HttpRequest<Incoming>> for EngineService {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: HttpRequest<Incoming>) -> Self::Future {
-        let engine = self.engine.clone();
+        let engine_clone = self.engine.clone();
         Box::pin(async move {
-            let mut incoming = req.into_body();
 
-            let mut incoming_bytes: Vec<u8>  = Vec::new();
+            let deserialized_request = bytes_to_deserialized_request(
+                http_request_to_bytes(req).await
+            );
 
-            while let Some(frame) = incoming.frame().await {
-                let frame = frame.unwrap();
-                let bytes = frame.into_data();
-
-                if let Err(_) = bytes {
-                    break;
-                }
-                
-                incoming_bytes.extend(bytes.unwrap());
+            if let Err(e) = deserialized_request {
+                let msg = format!("Failed to parse request: {}", e);
+                error!("{}", msg);
+                return Ok(
+                    text_to_http_response(
+                        msg,
+                        400
+                    )
+                );
             }
 
-            let incoming_request: Result<Request, SerdeError> = serde_json::from_slice(&incoming_bytes);
+            let deserialized_request = deserialized_request.unwrap();
 
-            if let Err(e) = incoming_request {
-                error!("Failed to parse request: {}", e);
-                let respond = Respond::Err("Failed to parse request".to_string());
-                let respond_bytes = serde_json::to_vec(&respond);
-                if let Err(e) = respond_bytes {
-                    error!("Failed to serialize response: {}", e);
-                    return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
-                }
-                let respond_bytes = respond_bytes.unwrap();
-                return Ok(HttpResponse::builder().status(400).body(respond_bytes.into()).unwrap());
+            let engine = engine_clone.lock();
+            if let Err(e) = &engine {
+                let msg = format!("Failed to lock engine: {}", e);
+                error!("{}", msg);
+                return Ok(
+                    text_to_http_response(
+                        msg,
+                        500
+                    )
+                );
             }
+            let mut engine = engine.unwrap();
 
-            let incoming_request = incoming_request.unwrap();
-
-            
-            let respond = match incoming_request {
-                Request::Put(key, value) => {
-                    let engine = engine.lock();
-                    if let Err(e) = engine {
-                        error!("Failed to lock engine: {}", e);
-                        return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
-                    }
-                    let mut engine = engine.unwrap();
+            let serialized_respond = match deserialized_request {
+                DeserializedRequest::Put(key, value) => {
+           
                     if let Err(e) = engine.put(key, value) {
-                        error!("Failed to put value: {}", e);
-                        return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
+                        let msg = format!("Failed to put value: {}", e.to_string());
+                        error!("{}", msg);
+                        return Ok(
+                            text_to_http_response(
+                                msg,
+                                500
+                            )
+                        );
                     }
-                    Respond::Ok
+
+                    SerializedRespond::Ok
                 },
-                Request::Get(key) => {
-                    let engine = engine.lock();
-                    if let Err(e) = engine {
-                        error!("Failed to lock engine: {}", e);
-                        return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
-                    }
-                    let engine = engine.unwrap();
+                DeserializedRequest::Get(key) => {
                     let value = engine.get(&key);
-                    if let Err(_) = value {
-                        Respond::Err("Could not fetch!".to_string())
-                    } else {
-                        Respond::Value(value.unwrap())
-                    }
+
+                    if let Err(e) = value {
+                        let msg = format!("Failed to get value: {}", e.to_string());
+                        error!("{}", msg);
+                        return Ok(
+                            text_to_http_response(
+                                msg,
+                                500
+                            )
+                        );
+                    } 
+
+                    SerializedRespond::Value(value.unwrap().clone())
                 },
-                Request::Del(key) => {
-                    let engine = engine.lock();
-                    if let Err(e) = engine {
-                        error!("Failed to lock engine: {}", e);
-                        return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
-                    }
-                    let engine = engine.unwrap();
+                DeserializedRequest::Del(key) => {
+
                     if let Err(e) = engine.del(&key) {
-                        error!("Failed to delete value: {}", e);
-                        return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
+                        let msg = format!("Failed to delete value: {}", e.to_string());
+                        error!("{}", msg);
+                        return Ok(
+                            text_to_http_response(
+                                msg,
+                                500
+                            )
+                        );
                     }
-                    Respond::Ok
+
+                    SerializedRespond::Ok
                 },
-                Request::List => {
-                    let engine = engine.lock();
-                    if let Err(e) = engine {
-                        error!("Failed to lock engine: {}", e);
-                        return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
-                    }
-                    let engine = engine.unwrap();
+                DeserializedRequest::List => {
                     let list = engine.list();
+
                     if let Err(e) = list {
-                        Respond::Err(format!("Failed to list keys: {}", e).to_string())
-                    } else {
-                        Respond::Keys(list.unwrap())
+                        let msg = format!("Failed to list values: {}", e.to_string());
+                        error!("{}", msg);
+                        return Ok(
+                            text_to_http_response(
+                                msg,
+                                500
+                            )
+                        );
                     }
+
+                    SerializedRespond::Keys(list.unwrap().clone())
                 }
             };
 
-            let respond_bytes = serde_json::to_vec(&respond);
-
-            if let Err(e) = respond_bytes {
-                error!("Failed to serialize response: {}", e);
-                return Ok(HttpResponse::builder().status(500).body("".into()).unwrap());
-            }
-
-            let respond_bytes = respond_bytes.unwrap();
-        
-            return Ok(HttpResponse::builder().status(200).body(respond_bytes.into()).unwrap());
+            return Ok(
+                bytes_to_http_response(
+                    serialized_respond_to_bytes(
+                        serialized_respond
+                    )
+                )
+            );
         })
     }
+}
+
+async fn http_request_to_bytes(req: HttpRequest<Incoming>) -> Vec<u8> {
+    let mut body = req.into_body();
+
+    let mut bytes_vec: Vec<u8>  = Vec::new();
+
+    while let Some(frame) = body.frame().await {
+        let frame = frame.unwrap();
+        let bytes = frame.into_data();
+
+        if let Err(_) = bytes {
+            break;
+        }
+        
+        bytes_vec.extend(bytes.unwrap());
+    }
+
+    bytes_vec
+}
+
+fn bytes_to_http_response(bytes: Vec<u8>) -> HttpResponse<Full<Bytes>> {
+    HttpResponse::builder().status(200).body(bytes.into()).unwrap()
+}
+
+fn text_to_http_response(text: String, exit: u16) -> HttpResponse<Full<Bytes>> {
+    HttpResponse::builder().status(exit).body(text.into()).unwrap()
+}
+
+fn bytes_to_deserialized_request(bytes: Vec<u8>) -> Result<DeserializedRequest, SerdeError> {
+    serde_json::from_slice(&bytes)
+}
+
+fn serialized_respond_to_bytes(res: SerializedRespond) -> Vec<u8> {
+    let bytes = serde_json::to_vec(&res);
+    bytes.expect("Failed to serialize respond")
 }

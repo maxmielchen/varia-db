@@ -23,10 +23,7 @@ pub struct WebServer {
 impl WebServer {
 
     pub async fn new(engine: Engine, port: u16) -> Self {
-        info!("Setting up server...");
         let engine = Arc::new(Mutex::new(engine));
-
-        info!("Starting server on port {}...", port);
         let addr = SocketAddr::from(([127, 0, 0, 1], port));
         let tcp_listener = TcpListener::bind(&addr).await;
 
@@ -36,8 +33,6 @@ impl WebServer {
         }
 
         let tcp_listener = tcp_listener.unwrap();
-
-        info!("Server listening on port {}", port);
 
         let service = EngineService::new(Arc::clone(&engine));
     
@@ -50,7 +45,7 @@ impl WebServer {
     }
 
     pub async fn run(self) {
-        info!("Successfully started!");
+        info!("Successfully started server on port {}", self.addr.port());
         
         loop {
             let accepted = self.tcp_listener.accept().await;

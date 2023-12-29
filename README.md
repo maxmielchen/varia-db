@@ -25,7 +25,7 @@ Put data into VariaDB:
     ]
 }
 ```
-> Note: you can also use Number, Boolean instead of Text.
+> Note: you can also use Number, Boolean, Array, Map instead of Text.
 
 Get data from VariaDB:
 ```json

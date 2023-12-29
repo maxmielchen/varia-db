@@ -5,10 +5,14 @@ pub mod setup;
 
 #[tokio::main]
 async fn main() {
-    
-    setup::log();
+    setup::log(log::Level::Info);
 
-    let server = setup::server().await;
+    let secondary = setup::secondary("data/secondary".to_string());
+    let primary = setup::primary();
+
+    let engine = setup::engine(secondary, primary);
+
+    let server = setup::server(engine, 8080).await;
 
     server.run().await;
 }

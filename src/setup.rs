@@ -5,7 +5,7 @@ use log::Level;
 
 use crate::{store::{Secondary, Primary, Engine}, server::Server};
 
-pub fn log() {
+pub fn log(level: Level) {
     println!(" _    __           _       ____  ____ ");
     println!("| |  / /___ ______(_)___ _/ __ \\/ __ )");
     println!("| | / / __ `/ ___/ / __ `/ / / / __  |");
@@ -14,13 +14,13 @@ pub fn log() {
     println!("______________________________________");
 
     SimpleLogger::new()
-        .with_level(Level::Info.to_level_filter())
+        .with_level(level.to_level_filter())
         .init().expect("Logger failed to initialize");
 }
 
-pub fn secondary() -> Secondary {
+pub fn secondary(path: String) -> Secondary {
     let secondary = Secondary::new(
-        Path::new("./test")
+        Path::new(path.as_str())
     );
     if let Err(_) = secondary {
         panic!("Shutdown");
@@ -32,14 +32,10 @@ pub fn primary() -> Primary {
     Primary::new()
 }
 
-pub fn engine() -> Engine {
-    Engine::new(secondary(), primary())
+pub fn engine(secondary: Secondary, primary: Primary) -> Engine {
+    Engine::new(secondary, primary)
 }
 
-pub fn port() -> u16 {
-    8654
-}
-
-pub async fn server() -> Server {
-    Server::new(engine(), port()).await
+pub async fn server(engine: Engine, port: u16) -> Server {
+    Server::new(engine, port).await
 }

@@ -1,9 +1,10 @@
 use std::path::Path;
 
+use moka::sync::Cache;
 use simple_logger::SimpleLogger;
 use log::Level;
 
-use crate::{store::{Secondary, Primary, Engine}, server::WebServer};
+use crate::{store::{Disk, Engine, Value}, server::WebServer};
 
 use std::env;
 
@@ -53,8 +54,8 @@ pub fn setup_log(level: Level) {
         .init().expect("Logger failed to initialize");
 }
 
-pub fn setup_secondary(path: String) -> Secondary {
-    let secondary = Secondary::new(
+pub fn setup_secondary(path: String) -> Disk {
+    let secondary = Disk::new(
         Path::new(path.as_str())
     );
     if let Err(_) = secondary {
@@ -63,11 +64,11 @@ pub fn setup_secondary(path: String) -> Secondary {
     secondary.unwrap()
 }
 
-pub fn setup_primary() -> Primary {
-    Primary::new()
+pub fn setup_primary() -> Cache<String, Value> {
+    Cache::new(1000)
 }
 
-pub fn setup_engine(secondary: Secondary, primary: Primary) -> Engine {
+pub fn setup_engine(secondary: Disk, primary: Cache<String, Value>) -> Engine {
     Engine::new(secondary, primary)
 }
 

@@ -26,7 +26,7 @@ impl Disk {
         })
     }
 
-    pub fn put(&mut self, key: String, value: Value) -> Result<(), Error> {
+    pub fn put(&self, key: String, value: Value) -> Result<(), Error> {
         let content = serde_json::to_string(&value)?;
         let mut file = File::create(self.path.join(format!("{}.json", key)))?;
         file.write_all(content.as_bytes())?;

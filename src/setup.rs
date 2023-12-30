@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use moka::sync::Cache;
+use moka::future::Cache;
 use simple_logger::SimpleLogger;
 use log::Level;
 
-use crate::{store::{Disk, Engine, Value}, server::WebServer};
+use crate::{store::{Disk, Engine, Value}, server::{WebServer, EngineService}};
 
 use std::env;
 
@@ -72,6 +72,10 @@ pub fn setup_engine(secondary: Disk, primary: Cache<String, Value>) -> Engine {
     Engine::new(secondary, primary)
 }
 
-pub async fn setup_web_server(engine: Engine, port: u16) -> WebServer {
-    WebServer::new(engine, port).await
+pub fn setup_engine_service(engine: Engine) -> EngineService {
+    EngineService::new(engine)
+}
+
+pub async fn setup_web_server(engine_service: EngineService, port: u16) -> WebServer {
+    WebServer::new(engine_service, port).await
 }

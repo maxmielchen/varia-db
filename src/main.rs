@@ -18,7 +18,9 @@ async fn main() {
 
     let engine = setup::setup_engine(secondary, primary);
 
-    let web_server = setup::setup_web_server(engine, configuration.port).await;
+    let engine_service = setup::setup_engine_service(engine);
+
+    let web_server = setup::setup_web_server(engine_service, configuration.port).await;
 
     web_server.run().await;
 }

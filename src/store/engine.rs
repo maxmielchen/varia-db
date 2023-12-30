@@ -46,12 +46,12 @@ impl Engine {
                     format!("Failed to put value in secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Value put in secondary storage");
+        } 
+        debug!("Value put in secondary storage");
 
-            self.primary.insert(key, value);
-            debug!("Value put in primary storage");
-        }
+        self.primary.insert(key, value);
+        debug!("Value put in primary storage");
+
         Ok(())
     }
 
@@ -78,9 +78,9 @@ impl Engine {
                     format!("Failed to get value from secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Value got from secondary storage")
-        }
+        } 
+        debug!("Value got from secondary storage");
+
         Ok(Some(res.unwrap()))
     }
 
@@ -96,12 +96,13 @@ impl Engine {
                     format!("Failed to delete value from secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Value deleted from secondary storage");
+        } 
+        
+        debug!("Value deleted from secondary storage");
 
-            self.primary.remove(key);
-            debug!("Value deleted from primary storage");
-        }
+        self.primary.remove(key);
+        debug!("Value deleted from primary storage");
+
         Ok(())
     }
 
@@ -116,9 +117,9 @@ impl Engine {
                     format!("Failed to list values from secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Values listed from secondary storage")
         }
+        debug!("Values listed from secondary storage");
+        
         Ok(res.unwrap())
     }
 
@@ -133,11 +134,12 @@ impl Engine {
                     format!("Failed to clear secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Secondary storage cleared");
+        } 
+        debug!("Secondary storage cleared");
 
-            self.primary.invalidate_all();
-        }
+        self.primary.invalidate_all();
+        debug!("Primary storage cleared");
+        
         Ok(())
     }
 }

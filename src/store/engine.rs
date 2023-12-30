@@ -2,19 +2,18 @@ use std::io::Error;
 use std::io::ErrorKind;
 use log::info;
 use log::{error, debug};
+use moka::sync::Cache;
 
-use super::Primary;
-use super::Secondary;
+use super::Disk;
 use super::Value;
 
 pub struct Engine {
-    secondary: Secondary,
-    #[allow(dead_code)]
-    primary: Primary,
+    secondary: Disk,
+    primary: Cache<String, Value>,
 }
 
 impl Engine {
-    pub fn new(secondary: Secondary, primary: Primary) -> Self {
+    pub fn new(secondary: Disk, primary: Cache<String, Value>) -> Self {
         Self {
             secondary,
             primary,
@@ -38,7 +37,7 @@ impl Engine {
     pub fn put(&mut self, key: String, value: Value) -> Result<(), Error> {
         info!("PUT {:?} {:?}", key, value);
         Self::key_validation(&key)?;
-        let res = self.secondary.put(key, value);
+        let res = self.secondary.put(key.clone(), value.clone());
         if let Err(e) = res {
             error!("Failed to put value in secondary storage: {:?}", e);
             return Err(
@@ -48,7 +47,10 @@ impl Engine {
                 )
             );
         } else {
-            debug!("Value put in secondary storage")
+            debug!("Value put in secondary storage");
+
+            self.primary.insert(key, value);
+            debug!("Value put in primary storage");
         }
         Ok(())
     }
@@ -56,6 +58,13 @@ impl Engine {
     pub fn get(&self, key: &str) -> Result<Option<Value>, Error> {
         info!("GET {:?}", key);
         Self::key_validation(key)?;
+
+        let res = self.primary.get(key);
+        if let Some(value) = res {
+            debug!("Value got from primary storage");
+            return Ok(Some(value.clone()));
+        }
+
         let res = self.secondary.get(key);
         if let Err(e) = res {
             if e.kind() == ErrorKind::NotFound {
@@ -88,7 +97,10 @@ impl Engine {
                 )
             );
         } else {
-            debug!("Value deleted from secondary storage")
+            debug!("Value deleted from secondary storage");
+
+            self.primary.remove(key);
+            debug!("Value deleted from primary storage");
         }
         Ok(())
     }
@@ -122,7 +134,9 @@ impl Engine {
                 )
             );
         } else {
-            debug!("Secondary storage cleared")
+            debug!("Secondary storage cleared");
+
+            self.primary.invalidate_all();
         }
         Ok(())
     }

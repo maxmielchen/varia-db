@@ -4,11 +4,11 @@ use log::error;
 
 use super::Value;
 
-pub struct Secondary {
+pub struct Disk {
     path: PathBuf,
 }
 
-impl Secondary {
+impl Disk {
     pub fn new(path: &Path) -> Result<Self, Error> {
         if path.exists() {
             if !path.is_dir() {

@@ -40,8 +40,8 @@ impl Engine {
 
     pub async fn put(&self, key: String, value: Value) -> Result<(), Error> {
         info!("PUT {:?} {:?}", key, value);
-        Self::key_validation(&key)?;
 
+        Self::key_validation(&key)?;
 
         let secondary_lock = self.secondary.lock();
         if let Err(e) = secondary_lock {
@@ -67,8 +67,6 @@ impl Engine {
         } 
         debug!("Value put in secondary storage");
 
-        
-
         let primary_cloned = self.primary.clone();
         tokio::task::spawn(async move {
             primary_cloned.insert(key, value).await;
@@ -81,6 +79,7 @@ impl Engine {
 
     pub async fn get(&self, key: &str) -> Result<Option<Value>, Error> {
         info!("GET {:?}", key);
+        
         Self::key_validation(key)?;
 
         let res = self.primary.get(key).await;

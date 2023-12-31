@@ -14,7 +14,11 @@ async fn main() {
     let secondary = setup::setup_secondary(
         configuration.data_dir
     );
-    let primary = setup::setup_primary();
+    let primary = setup::setup_primary(
+        configuration.cache_size,
+        configuration.cache_ttl,
+        configuration.cache_tti
+    );
 
     let engine = setup::setup_engine(secondary, primary);
 

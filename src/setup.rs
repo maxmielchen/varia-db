@@ -1,10 +1,10 @@
-use std::path::Path;
+use std::{path::Path, time::Duration};
 
 use moka::future::Cache;
 use simple_logger::SimpleLogger;
 use log::Level;
 
-use crate::{store::{Disk, Engine, Value}, server::{WebServer, EngineService}};
+use crate::{store::{Disk, Engine, Value, weight}, server::{WebServer, EngineService}};
 
 use std::env;
 
@@ -12,7 +12,11 @@ use std::env;
 pub struct Configuration {
     pub log_level: Level,
     pub data_dir: String,
-    pub port: u16
+    pub port: u16,
+
+    pub cache_size: u64,
+    pub cache_ttl: u64,
+    pub cache_tti: u64,
 }
 
 impl Configuration {
@@ -28,10 +32,18 @@ impl Configuration {
         };
         let data_dir = env::var("DATA_DIR").expect("DATA_DIR not set");
         let port = env::var("PORT").expect("PORT not set").parse::<u16>().expect("PORT is not a valid number");
+
+        let cache_size = env::var("CACHE_SIZE").expect("CACHE_SIZE not set").parse::<u64>().expect("CACHE_SIZE is not a valid number");
+        let cache_ttl = env::var("CACHE_TTL").expect("CACHE_TTL not set").parse::<u64>().expect("CACHE_TTL is not a valid number");
+        let cache_tti = env::var("CACHE_TTI").expect("CACHE_TTI not set").parse::<u64>().expect("CACHE_TTI is not a valid number");
+
         Self {
             log_level,
             data_dir,
-            port
+            port,
+            cache_size,
+            cache_ttl,
+            cache_tti,
         }
     }
 }
@@ -64,8 +76,13 @@ pub fn setup_secondary(path: String) -> Disk {
     secondary.unwrap()
 }
 
-pub fn setup_primary() -> Cache<String, Value> {
-    Cache::new(1000)
+pub fn setup_primary(size: u64, ttl: u64, tti: u64) -> Cache<String, Value> {
+    Cache::builder()
+        .max_capacity(size)
+        .time_to_live(Duration::from_secs(ttl))
+        .time_to_idle(Duration::from_secs(tti))
+        .weigher(weight)
+        .build()
 }
 
 pub fn setup_engine(secondary: Disk, primary: Cache<String, Value>) -> Engine {

@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}, pin::Pin, future::Future};
+use std::{pin::Pin, future::Future, sync::Arc};
 
 
 use http_body_util::{Full, BodyExt as _};
@@ -14,13 +14,13 @@ use log::error;
 
 #[derive(Clone)]
 pub struct EngineService {
-    engine: Arc<Mutex<Engine>>,
+    engine: Arc<Engine>,
 }
 
 impl EngineService {
-    pub fn new(engine: Arc<Mutex<Engine>>) -> Self {
+    pub fn new(engine: Engine) -> Self {
         Self {
-            engine,
+            engine: Arc::new(engine),
         }
     }
 }
@@ -34,7 +34,7 @@ impl Service<HttpRequest<Incoming>> for EngineService {
     type Future = Pin<Box<dyn Future<Output = Result<Self::Response, Self::Error>> + Send>>;
 
     fn call(&self, req: HttpRequest<Incoming>) -> Self::Future {
-        let engine_clone = self.engine.clone();
+        let engine = self.engine.clone();
         Box::pin(async move {
 
             let deserialized_request = bytes_to_deserialized_request(
@@ -54,23 +54,10 @@ impl Service<HttpRequest<Incoming>> for EngineService {
 
             let deserialized_request = deserialized_request.unwrap();
 
-            let engine = engine_clone.lock();
-            if let Err(e) = &engine {
-                let msg = format!("Failed to lock engine: {}", e);
-                error!("{}", msg);
-                return Ok(
-                    text_to_http_response(
-                        msg,
-                        500
-                    )
-                );
-            }
-            let mut engine = engine.unwrap();
-
             let serialized_respond = match deserialized_request {
                 DeserializedRequest::Put(key, value) => {
            
-                    if let Err(e) = engine.put(key, value) {
+                    if let Err(e) = engine.put(key, value).await {
                         let msg = format!("Failed to put value: {}", e.to_string());
                         error!("{}", msg);
                         return Ok(
@@ -84,7 +71,7 @@ impl Service<HttpRequest<Incoming>> for EngineService {
                     SerializedRespond::Ok
                 },
                 DeserializedRequest::Get(key) => {
-                    let value = engine.get(&key);
+                    let value = engine.get(&key).await;
 
                     if let Err(e) = value {
                         let msg = format!("Failed to get value: {}", e.to_string());
@@ -101,7 +88,7 @@ impl Service<HttpRequest<Incoming>> for EngineService {
                 },
                 DeserializedRequest::Del(key) => {
 
-                    if let Err(e) = engine.del(&key) {
+                    if let Err(e) = engine.del(&key).await {
                         let msg = format!("Failed to delete value: {}", e.to_string());
                         error!("{}", msg);
                         return Ok(
@@ -115,7 +102,7 @@ impl Service<HttpRequest<Incoming>> for EngineService {
                     SerializedRespond::Ok
                 },
                 DeserializedRequest::List => {
-                    let list = engine.list();
+                    let list = engine.list().await;
 
                     if let Err(e) = list {
                         let msg = format!("Failed to list values: {}", e.to_string());

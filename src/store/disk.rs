@@ -4,11 +4,11 @@ use log::error;
 
 use super::Value;
 
-pub struct Secondary {
+pub struct Disk {
     path: PathBuf,
 }
 
-impl Secondary {
+impl Disk {
     pub fn new(path: &Path) -> Result<Self, Error> {
         if path.exists() {
             if !path.is_dir() {
@@ -26,7 +26,7 @@ impl Secondary {
         })
     }
 
-    pub fn put(&mut self, key: String, value: Value) -> Result<(), Error> {
+    pub fn put(&self, key: String, value: Value) -> Result<(), Error> {
         let content = serde_json::to_string(&value)?;
         let mut file = File::create(self.path.join(format!("{}.json", key)))?;
         file.write_all(content.as_bytes())?;

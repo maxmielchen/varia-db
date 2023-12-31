@@ -2,3 +2,6 @@
 LOG_LEVEL = "info"
 DATA_DIR = { value = "target/data", relative = true}
 PORT = "8654"
+CACHE_SIZE = "10000"
+CACHE_TTL = "300"
+CACHE_TTI = "60"

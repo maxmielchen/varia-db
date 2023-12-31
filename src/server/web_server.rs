@@ -1,4 +1,4 @@
-use std::{sync::{Arc, Mutex}, net::SocketAddr};
+use std::net::SocketAddr;
 
 
 use hyper::server::conn::http1::Builder ;
@@ -7,24 +7,20 @@ use tokio::net::TcpListener;
 
 use log::{error, info};
 
-use crate::store::Engine;
-
 use super::EngineService;
 
 #[allow(dead_code)]
 pub struct WebServer {
-    engine: Arc<Mutex<Engine>>,
     addr: SocketAddr,
     tcp_listener: TcpListener,
 
-    service: EngineService,
+    engine_service: EngineService,
 }
 
 impl WebServer {
 
-    pub async fn new(engine: Engine, port: u16) -> Self {
-        let engine = Arc::new(Mutex::new(engine));
-        let addr = SocketAddr::from(([127, 0, 0, 1], port));
+    pub async fn new(engine_service: EngineService, port: u16) -> Self {
+        let addr = SocketAddr::from(([0, 0, 0, 0], port));
         let tcp_listener = TcpListener::bind(&addr).await;
 
         if let Err(_) = tcp_listener {
@@ -33,14 +29,11 @@ impl WebServer {
         }
 
         let tcp_listener = tcp_listener.unwrap();
-
-        let service = EngineService::new(Arc::clone(&engine));
     
         Self {
-            engine,
             addr,
             tcp_listener,
-            service
+            engine_service,
         }
     }
 
@@ -49,7 +42,7 @@ impl WebServer {
         
         loop {
             let accepted = self.tcp_listener.accept().await;
-            let service_clone = self.service.clone();
+            let service_clone = self.engine_service.clone();
             tokio::task::spawn(async move {
 
                 if let Err(_) = accepted {

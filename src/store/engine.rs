@@ -1,20 +1,23 @@
 use std::io::Error;
 use std::io::ErrorKind;
+use std::sync::Arc;
+use std::sync::Mutex;
 use log::info;
+use log::trace;
 use log::{error, debug};
+use moka::future::Cache;
 
-use super::Primary;
-use super::Secondary;
+use super::Disk;
 use super::Value;
 
 pub struct Engine {
-    secondary: Secondary,
-    #[allow(dead_code)]
-    primary: Primary,
+    secondary: Arc<Mutex<Disk>>,
+    primary: Cache<String, Value>,
 }
 
 impl Engine {
-    pub fn new(secondary: Secondary, primary: Primary) -> Self {
+    pub fn new(secondary: Disk, primary: Cache<String, Value>) -> Self {
+        let secondary = Arc::new(Mutex::new(secondary));
         Self {
             secondary,
             primary,
@@ -35,10 +38,24 @@ impl Engine {
         Ok(())
     }
 
-    pub fn put(&mut self, key: String, value: Value) -> Result<(), Error> {
+    pub async fn put(&self, key: String, value: Value) -> Result<(), Error> {
         info!("PUT {:?} {:?}", key, value);
+
         Self::key_validation(&key)?;
-        let res = self.secondary.put(key, value);
+
+        let secondary_lock = self.secondary.lock();
+        if let Err(e) = secondary_lock {
+            error!("Failed to lock secondary storage: {:?}", e);
+            return Err(
+                Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to lock secondary storage: {:?}", e)
+                )
+            );
+        }
+        let secondary_locked = secondary_lock.unwrap();
+
+        let res = secondary_locked.put(key.clone(), value.clone());
         if let Err(e) = res {
             error!("Failed to put value in secondary storage: {:?}", e);
             return Err(
@@ -47,16 +64,43 @@ impl Engine {
                     format!("Failed to put value in secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Value put in secondary storage")
-        }
+        } 
+        debug!("Value put in secondary storage");
+
+        let primary_cloned = self.primary.clone();
+        tokio::task::spawn(async move {
+            primary_cloned.insert(key, value).await;
+            debug!("Value put in primary storage");
+            trace!("Primary storage: {:?}", primary_cloned);
+        });
+
         Ok(())
     }
 
-    pub fn get(&self, key: &str) -> Result<Option<Value>, Error> {
+    pub async fn get(&self, key: &str) -> Result<Option<Value>, Error> {
         info!("GET {:?}", key);
+        
         Self::key_validation(key)?;
-        let res = self.secondary.get(key);
+
+        let res = self.primary.get(key).await;
+        if let Some(value) = res {
+            debug!("Value got from primary storage");
+            return Ok(Some(value.clone()));
+        }
+
+        let secondary_lock = self.secondary.lock();
+        if let Err(e) = secondary_lock {
+            error!("Failed to lock secondary storage: {:?}", e);
+            return Err(
+                Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to lock secondary storage: {:?}", e)
+                )
+            );
+        }
+        let secondary_locked = secondary_lock.unwrap();
+
+        let res = secondary_locked.get(key);
         if let Err(e) = res {
             if e.kind() == ErrorKind::NotFound {
                 debug!("Value not found in secondary storage");
@@ -69,16 +113,40 @@ impl Engine {
                     format!("Failed to get value from secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Value got from secondary storage")
-        }
-        Ok(Some(res.unwrap()))
+        } 
+        debug!("Value got from secondary storage");
+
+        let res = res.unwrap();
+
+        let primary_cloned = self.primary.clone();
+        let key_cloned = key.to_string().clone();
+        let value_cloned = res.clone();
+        tokio::task::spawn(async move {
+            primary_cloned.insert(key_cloned, value_cloned).await;
+            debug!("Value put in primary storage");
+            trace!("Primary storage: {:?}", primary_cloned);
+        });
+
+        Ok(Some(res))
     }
 
-    pub fn del(&self, key: &str) -> Result<(), Error> {
+    pub async fn del(&self, key: &str) -> Result<(), Error> {
         info!("DEL {:?}", key);
         Self::key_validation(key)?;
-        let res = self.secondary.del(key);
+
+        let secondary_lock = self.secondary.lock();
+        if let Err(e) = secondary_lock {
+            error!("Failed to lock secondary storage: {:?}", e);
+            return Err(
+                Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to lock secondary storage: {:?}", e)
+                )
+            );
+        }
+        let secondary_locked = secondary_lock.unwrap();
+
+        let res = secondary_locked.del(key);
         if let Err(e) = res {
             error!("Failed to delete value from secondary storage: {:?}", e);
             return Err(
@@ -87,15 +155,37 @@ impl Engine {
                     format!("Failed to delete value from secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Value deleted from secondary storage")
-        }
+        } 
+        
+        debug!("Value deleted from secondary storage");
+
+        let primary_cloned = self.primary.clone();
+        let key_cloned = key.to_string().clone();
+        tokio::task::spawn(async move {
+            primary_cloned.invalidate(&key_cloned).await;
+            debug!("Value deleted from primary storage");
+            trace!("Primary storage: {:?}", primary_cloned);
+        });
+
         Ok(())
     }
 
-    pub fn list(&self) -> Result<Vec<String>, Error> {
+    pub async fn list(&self) -> Result<Vec<String>, Error> {
         info!("LIST");
-        let res = self.secondary.list();
+
+        let secondary_lock = self.secondary.lock();
+        if let Err(e) = secondary_lock {
+            error!("Failed to lock secondary storage: {:?}", e);
+            return Err(
+                Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to lock secondary storage: {:?}", e)
+                )
+            );
+        }
+        let secondary_locked = secondary_lock.unwrap();
+
+        let res = secondary_locked.list();
         if let Err(e) = res {
             error!("Failed to list values from secondary storage: {:?}", e);
             return Err(
@@ -104,15 +194,28 @@ impl Engine {
                     format!("Failed to list values from secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Values listed from secondary storage")
         }
+        debug!("Values listed from secondary storage");
+        
         Ok(res.unwrap())
     }
 
-    pub fn clear(&self) -> Result<(), Error> {
+    pub async fn clear(&self) -> Result<(), Error> {
         info!("CLEAR");
-        let res = self.secondary.clear();
+
+        let secondary_lock = self.secondary.lock();
+        if let Err(e) = secondary_lock {
+            error!("Failed to lock secondary storage: {:?}", e);
+            return Err(
+                Error::new(
+                    ErrorKind::Other,
+                    format!("Failed to lock secondary storage: {:?}", e)
+                )
+            );
+        }
+        let secondary_locked = secondary_lock.unwrap();
+
+        let res = secondary_locked.clear();
         if let Err(e) = res {
             error!("Failed to clear secondary storage: {:?}", e);
             return Err(
@@ -121,9 +224,22 @@ impl Engine {
                     format!("Failed to clear secondary storage: {:?}", e)
                 )
             );
-        } else {
-            debug!("Secondary storage cleared")
-        }
+        } 
+        debug!("Secondary storage cleared");
+
+        self.primary.invalidate_all();
+        debug!("Primary storage cleared");
+        trace!("Primary storage: {:?}", self.primary);
+        
         Ok(())
+    }
+}
+
+impl Clone for Engine {
+    fn clone(&self) -> Self {
+        Self {
+            secondary: self.secondary.clone(),
+            primary: self.primary.clone(),
+        }
     }
 }

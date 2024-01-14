@@ -47,6 +47,7 @@ impl Engine {
             debug!("Cache hit for key {:?} with value {:?}", key, current_value);
 
             debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
             self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
 
             let primary = self.primary.clone();
@@ -59,12 +60,17 @@ impl Engine {
             debug!("Returning old value");
             return Ok(current_value);
 
-        } else if let Some(current_value) = self.secondary.lock().unwrap().get(key.clone())? {
+        } 
+        
+        let mut secondary = self.secondary.lock().unwrap();
+
+        if let Some(current_value) = &secondary.get(key.clone())? {
 
             debug!("Cache miss for key {:?} with value {:?}", key, current_value);
 
             debug!("Updating secondary storage");
-            self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            secondary.put(key.clone(), value.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), value.clone());
@@ -74,13 +80,14 @@ impl Engine {
             });
 
             debug!("Returning old value");
-            return Ok(Some(current_value));
+            return Ok(Some(current_value.clone()));
 
         } else {
             debug!("Cache miss for key {:?}", key);
 
             debug!("Updating secondary storage");
-            self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            secondary.put(key.clone(), value.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), value.clone());
@@ -107,7 +114,11 @@ impl Engine {
             debug!("Returning value");
             return Ok(value);
 
-        } else if let Some(value) = self.secondary.lock().unwrap().get(key.clone())? {
+        } 
+
+        let mut secondary = self.secondary.lock().unwrap(); 
+        
+        if let Some(value) = &secondary.get(key.clone())? {
 
             debug!("Cache miss for key {:?} with value {:?}", key, value);
 
@@ -119,7 +130,7 @@ impl Engine {
             });
 
             debug!("Returning value");
-            return Ok(Some(value));
+            return Ok(Some(value.clone()));
 
         } else {
 
@@ -148,6 +159,7 @@ impl Engine {
             debug!("Cache hit for key {:?} with value {:?}", key, value);
 
             debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
             self.secondary.lock().unwrap().del(key.clone())?;
             
             let primary = self.primary.clone();
@@ -160,12 +172,17 @@ impl Engine {
             debug!("Returning old value");
             return Ok(value);
 
-        } else if let Some(value) = self.secondary.lock().unwrap().get(key.clone())? {
+        } 
+
+        let mut secondary = self.secondary.lock().unwrap();
+        
+        if let Some(value) = &secondary.get(key.clone())? {
 
             debug!("Cache miss for key {:?} with value {:?}", key, value);
 
             debug!("Updating secondary storage");
-            self.secondary.lock().unwrap().del(key.clone())?;
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            secondary.del(key.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), None);
@@ -175,7 +192,7 @@ impl Engine {
             });
 
             debug!("Returning old value");
-            return Ok(Some(value));
+            return Ok(Some(value.clone()));
 
         } else {
 
@@ -198,12 +215,16 @@ impl Engine {
     pub async fn list(&self) -> Result<Vec<String>, Error> {
         info!("LIST");
 
+        debug!("Updating secondary storage");
+        debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
         return Ok(self.secondary.lock().unwrap().list()?);
     }
 
     pub async fn clear(&self) -> Result<(), Error> {
         info!("CLEAR");
 
+        debug!("Updating secondary storage");
+        debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
         return Ok(self.secondary.lock().unwrap().clear()?);
     }
 }

@@ -1,6 +1,8 @@
 use core::panic;
 use std::{path::Path, fs::{File, OpenOptions}, io::{Error, Write, ErrorKind, Read, Seek, SeekFrom}};
 
+use log::trace;
+
 use super::Value;
 
 pub struct Disk {
@@ -267,11 +269,13 @@ impl Disk {
             let bytes_read = self.buf_stream.read(&mut opt)?;
 
             if bytes_read == 0 {
+                trace!("Append entry");
                 self.buf_stream.write(entry_buf.as_slice())?;
                 break;
             }
 
             if opt[0] == 0 {
+                trace!("Skip entry");
                 let mut buf: [u8; 32] = [0; 32];
                 self.buf_stream.read(&mut buf)?;
                 let (_, key_len, value_len) = Self::entry_frame_len(buf)?;
@@ -285,22 +289,26 @@ impl Disk {
                 self.buf_stream.read(&mut buf)?;
                 let frame_len = Self::big_gap_frame_len(buf)?;
                 if frame_len > entry_buf.len() as u128 {
+                    trace!("Fill gap frame");
                     self.negative_seek(17)?;
                     self.buf_stream.write(&Self::gap_frame(frame_len - entry_buf.len() as u128))?;
                     self.buf_stream.write(entry_buf.as_slice())?;
                     break;
                 }
                 if frame_len == entry_buf.len() as u128 {
+                    trace!("Replace gap frame");
                     self.negative_seek(17)?;
                     self.buf_stream.write(entry_buf.as_slice())?;
                     break;
                 }
+                trace!("Skip gap frame");
                 self.positive_seek(frame_len as usize)?;
                 self.negative_seek(17)?;
                 continue;
             }
 
             if opt[0] < 17 {
+                trace!("Skip gap frame");
                 let frame_len = opt[0];
                 self.positive_seek(frame_len as usize)?;
                 self.negative_seek(1)?;
@@ -328,6 +336,7 @@ impl Disk {
             }
 
             if opt[0] == 0 {
+                trace!("Read entry frame");
                 let mut buf: [u8; 32] = [0; 32];
                 self.buf_stream.read(&mut buf)?;
                 let (_, key_len, value_len) = Self::entry_frame_len(buf)?;
@@ -352,6 +361,7 @@ impl Disk {
                 return Ok(Some(value));
             }
 
+            trace!("Skip gap frame");
             self.seek_gap(opt[0])?;
         }
     }
@@ -374,6 +384,8 @@ impl Disk {
             }
 
             if opt[0] == 0 {
+                trace!("Read entry frame");
+
                 let mut buf: [u8; 32] = [0; 32];
                 self.buf_stream.read(&mut buf)?;
                 let (frame_len, key_len, value_len) = Self::entry_frame_len(buf)?;
@@ -390,10 +402,12 @@ impl Disk {
                 self.positive_seek(value_len as usize)?;
                 self.negative_seek(frame_len as usize)?;
 
+                trace!("Write gap frame");
                 self.buf_stream.write(&Self::gap_frame(frame_len))?;
                 return Ok(());
             }
             
+            trace!("Skip gap frame");
             self.seek_gap(opt[0])?;
         }
     }

@@ -2,9 +2,8 @@ use std::io::Error;
 use std::io::ErrorKind;
 use std::sync::Arc;
 use std::sync::Mutex;
+use log::debug;
 use log::info;
-use log::trace;
-use log::{error, debug};
 use moka::future::Cache;
 
 use super::Disk;
@@ -12,11 +11,11 @@ use super::Value;
 
 pub struct Engine {
     secondary: Arc<Mutex<Disk>>,
-    primary: Cache<String, Value>,
+    primary: Cache<String, Option<Value>>,
 }
 
 impl Engine {
-    pub fn new(secondary: Disk, primary: Cache<String, Value>) -> Self {
+    pub fn new(secondary: Disk, primary: Cache<String, Option<Value>>) -> Self {
         let secondary = Arc::new(Mutex::new(secondary));
         Self {
             secondary,
@@ -24,7 +23,7 @@ impl Engine {
         }
     }
 
-    fn key_validation(key: &str) -> Result<(), Error> {
+    fn key_validation(key: &String) -> Result<(), Error> {
         for c in key.chars() {
             if !c.is_alphanumeric() {
                 return Err(
@@ -38,200 +37,195 @@ impl Engine {
         Ok(())
     }
 
-    pub async fn put(&self, key: String, value: Value) -> Result<(), Error> {
+    pub async fn put(&self, key: String, value: Value) -> Result<Option<Value>, Error> {
         info!("PUT {:?} {:?}", key, value);
 
         Self::key_validation(&key)?;
+        
+        if let Some(current_value) = self.primary.get(&key).await {
 
-        let secondary_lock = self.secondary.lock();
-        if let Err(e) = secondary_lock {
-            error!("Failed to lock secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to lock secondary storage: {:?}", e)
-                )
-            );
-        }
-        let secondary_locked = secondary_lock.unwrap();
+            debug!("Cache hit for key {:?} with value {:?}", key, current_value);
 
-        let res = secondary_locked.put(key.clone(), value.clone());
-        if let Err(e) = res {
-            error!("Failed to put value in secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to put value in secondary storage: {:?}", e)
-                )
-            );
+            debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
+
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), value.clone());
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, Some(value_clone)).await;
+            });
+
+            debug!("Returning old value");
+            return Ok(current_value);
+
         } 
-        debug!("Value put in secondary storage");
+        
+        let mut secondary = self.secondary.lock().unwrap();
 
-        let primary_cloned = self.primary.clone();
-        tokio::task::spawn(async move {
-            primary_cloned.insert(key, value).await;
-            debug!("Value put in primary storage");
-            trace!("Primary storage: {:?}", primary_cloned);
-        });
+        if let Some(current_value) = &secondary.get(key.clone())? {
 
-        Ok(())
+            debug!("Cache miss for key {:?} with value {:?}", key, current_value);
+
+            debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            secondary.put(key.clone(), value.clone())?;
+            
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), value.clone());
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, Some(value_clone)).await;
+            });
+
+            debug!("Returning old value");
+            return Ok(Some(current_value.clone()));
+
+        } else {
+            debug!("Cache miss for key {:?}", key);
+
+            debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            secondary.put(key.clone(), value.clone())?;
+            
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), value.clone());
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, Some(value_clone)).await;
+            });
+
+            debug!("Returning old value");
+            return Ok(None);
+
+        }
     }
 
-    pub async fn get(&self, key: &str) -> Result<Option<Value>, Error> {
+    pub async fn get(&self, key: String) -> Result<Option<Value>, Error> {
         info!("GET {:?}", key);
         
-        Self::key_validation(key)?;
+        Self::key_validation(&key)?;
 
-        let res = self.primary.get(key).await;
-        if let Some(value) = res {
-            debug!("Value got from primary storage");
-            return Ok(Some(value.clone()));
-        }
+        if let Some(value) = self.primary.get(&key).await {
 
-        let secondary_lock = self.secondary.lock();
-        if let Err(e) = secondary_lock {
-            error!("Failed to lock secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to lock secondary storage: {:?}", e)
-                )
-            );
-        }
-        let secondary_locked = secondary_lock.unwrap();
+            debug!("Cache hit for key {:?} with value {:?}", key, value);
 
-        let res = secondary_locked.get(key);
-        if let Err(e) = res {
-            if e.kind() == ErrorKind::NotFound {
-                debug!("Value not found in secondary storage");
-                return Ok(None);
-            }
-            error!("Failed to get value from secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to get value from secondary storage: {:?}", e)
-                )
-            );
+            debug!("Returning value");
+            return Ok(value);
+
         } 
-        debug!("Value got from secondary storage");
 
-        let res = res.unwrap();
+        let mut secondary = self.secondary.lock().unwrap(); 
+        
+        if let Some(value) = &secondary.get(key.clone())? {
 
-        let primary_cloned = self.primary.clone();
-        let key_cloned = key.to_string().clone();
-        let value_cloned = res.clone();
-        tokio::task::spawn(async move {
-            primary_cloned.insert(key_cloned, value_cloned).await;
-            debug!("Value put in primary storage");
-            trace!("Primary storage: {:?}", primary_cloned);
-        });
+            debug!("Cache miss for key {:?} with value {:?}", key, value);
 
-        Ok(Some(res))
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), value.clone());
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, Some(value_clone)).await;
+            });
+
+            debug!("Returning value");
+            return Ok(Some(value.clone()));
+
+        } else {
+
+            debug!("Cache miss for key {:?}", key);
+
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), None);
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, value_clone).await;
+            });
+
+            debug!("Returning value");
+            return Ok(None);
+
+        }
     }
 
-    pub async fn del(&self, key: &str) -> Result<(), Error> {
+    pub async fn del(&self, key: String) -> Result<Option<Value>, Error> {
         info!("DEL {:?}", key);
-        Self::key_validation(key)?;
+        Self::key_validation(&key)?;
 
-        let secondary_lock = self.secondary.lock();
-        if let Err(e) = secondary_lock {
-            error!("Failed to lock secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to lock secondary storage: {:?}", e)
-                )
-            );
-        }
-        let secondary_locked = secondary_lock.unwrap();
-
-        let res = secondary_locked.del(key);
-        if let Err(e) = res {
-            error!("Failed to delete value from secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to delete value from secondary storage: {:?}", e)
-                )
-            );
-        } 
         
-        debug!("Value deleted from secondary storage");
+        if let Some(value) = self.primary.get(&key).await {
 
-        let primary_cloned = self.primary.clone();
-        let key_cloned = key.to_string().clone();
-        tokio::task::spawn(async move {
-            primary_cloned.invalidate(&key_cloned).await;
-            debug!("Value deleted from primary storage");
-            trace!("Primary storage: {:?}", primary_cloned);
-        });
+            debug!("Cache hit for key {:?} with value {:?}", key, value);
 
-        Ok(())
+            debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            self.secondary.lock().unwrap().del(key.clone())?;
+            
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), None);
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, value_clone).await;
+            });
+
+            debug!("Returning old value");
+            return Ok(value);
+
+        } 
+
+        let mut secondary = self.secondary.lock().unwrap();
+        
+        if let Some(value) = &secondary.get(key.clone())? {
+
+            debug!("Cache miss for key {:?} with value {:?}", key, value);
+
+            debug!("Updating secondary storage");
+            debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+            secondary.del(key.clone())?;
+            
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), None);
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, value_clone).await;
+            });
+
+            debug!("Returning old value");
+            return Ok(Some(value.clone()));
+
+        } else {
+
+            debug!("Cache miss for key {:?}", key);
+
+            let primary = self.primary.clone();
+            let (key_clone, value_clone) = (key.clone(), None);
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
+                primary.insert(key_clone, value_clone).await;
+            });
+
+            debug!("Returning old value");
+            return Ok(None);
+
+        }
+        
     }
 
     pub async fn list(&self) -> Result<Vec<String>, Error> {
         info!("LIST");
 
-        let secondary_lock = self.secondary.lock();
-        if let Err(e) = secondary_lock {
-            error!("Failed to lock secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to lock secondary storage: {:?}", e)
-                )
-            );
-        }
-        let secondary_locked = secondary_lock.unwrap();
-
-        let res = secondary_locked.list();
-        if let Err(e) = res {
-            error!("Failed to list values from secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to list values from secondary storage: {:?}", e)
-                )
-            );
-        }
-        debug!("Values listed from secondary storage");
-        
-        Ok(res.unwrap())
+        debug!("Updating secondary storage");
+        debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+        return Ok(self.secondary.lock().unwrap().list()?);
     }
 
     pub async fn clear(&self) -> Result<(), Error> {
         info!("CLEAR");
 
-        let secondary_lock = self.secondary.lock();
-        if let Err(e) = secondary_lock {
-            error!("Failed to lock secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to lock secondary storage: {:?}", e)
-                )
-            );
-        }
-        let secondary_locked = secondary_lock.unwrap();
-
-        let res = secondary_locked.clear();
-        if let Err(e) = res {
-            error!("Failed to clear secondary storage: {:?}", e);
-            return Err(
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to clear secondary storage: {:?}", e)
-                )
-            );
-        } 
-        debug!("Secondary storage cleared");
-
-        self.primary.invalidate_all();
-        debug!("Primary storage cleared");
-        trace!("Primary storage: {:?}", self.primary);
-        
-        Ok(())
+        debug!("Updating secondary storage");
+        debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
+        return Ok(self.secondary.lock().unwrap().clear()?);
     }
 }
 

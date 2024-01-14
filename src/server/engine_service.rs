@@ -71,7 +71,7 @@ impl Service<HttpRequest<Incoming>> for EngineService {
                     SerializedRespond::Ok
                 },
                 DeserializedRequest::Get(key) => {
-                    let value = engine.get(&key).await;
+                    let value = engine.get(key).await;
 
                     if let Err(e) = value {
                         let msg = format!("Failed to get value: {}", e.to_string());
@@ -88,7 +88,7 @@ impl Service<HttpRequest<Incoming>> for EngineService {
                 },
                 DeserializedRequest::Del(key) => {
 
-                    if let Err(e) = engine.del(&key).await {
+                    if let Err(e) = engine.del(key).await {
                         let msg = format!("Failed to delete value: {}", e.to_string());
                         error!("{}", msg);
                         return Ok(

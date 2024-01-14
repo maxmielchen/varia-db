@@ -5,7 +5,7 @@ RUN cargo install --path .
 
 FROM debian:bookworm-slim
 ENV LOG_LEVEL=info
-ENV DATA_DIR=/data 
+ENV DATA_DIR=/data/varia.bin
 ENV PORT=8654
 ENV CACHE_SIZE=10000
 ENV CACHE_TTL=3600

@@ -76,7 +76,7 @@ pub fn setup_secondary(path: String) -> Disk {
     secondary.unwrap()
 }
 
-pub fn setup_primary(size: u64, ttl: u64, tti: u64) -> Cache<String, Value> {
+pub fn setup_primary(size: u64, ttl: u64, tti: u64) -> Cache<String, Option<Value>> {
     Cache::builder()
         .max_capacity(size)
         .time_to_live(Duration::from_secs(ttl))
@@ -85,7 +85,7 @@ pub fn setup_primary(size: u64, ttl: u64, tti: u64) -> Cache<String, Value> {
         .build()
 }
 
-pub fn setup_engine(secondary: Disk, primary: Cache<String, Value>) -> Engine {
+pub fn setup_engine(secondary: Disk, primary: Cache<String, Option<Value>>) -> Engine {
     Engine::new(secondary, primary)
 }
 

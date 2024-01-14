@@ -2,6 +2,7 @@ use std::io::Error;
 use std::io::ErrorKind;
 use std::sync::Arc;
 use std::sync::Mutex;
+use log::debug;
 use log::info;
 use moka::future::Cache;
 
@@ -43,37 +44,52 @@ impl Engine {
         
         if let Some(current_value) = self.primary.get(&key).await {
 
+            debug!("Cache hit for key {:?} with value {:?}", key, current_value);
+
+            debug!("Updating secondary storage");
             self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
 
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), value.clone());
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, Some(value_clone)).await;
             });
 
+            debug!("Returning old value");
             return Ok(current_value);
 
         } else if let Some(current_value) = self.secondary.lock().unwrap().get(key.clone())? {
 
+            debug!("Cache miss for key {:?} with value {:?}", key, current_value);
+
+            debug!("Updating secondary storage");
             self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), value.clone());
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, Some(value_clone)).await;
             });
 
+            debug!("Returning old value");
             return Ok(Some(current_value));
 
         } else {
+            debug!("Cache miss for key {:?}", key);
+
+            debug!("Updating secondary storage");
             self.secondary.lock().unwrap().put(key.clone(), value.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), value.clone());
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, Some(value_clone)).await;
             });
 
+            debug!("Returning old value");
             return Ok(None);
 
         }
@@ -86,26 +102,37 @@ impl Engine {
 
         if let Some(value) = self.primary.get(&key).await {
 
+            debug!("Cache hit for key {:?} with value {:?}", key, value);
+
+            debug!("Returning value");
             return Ok(value);
 
         } else if let Some(value) = self.secondary.lock().unwrap().get(key.clone())? {
 
+            debug!("Cache miss for key {:?} with value {:?}", key, value);
+
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), value.clone());
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, Some(value_clone)).await;
             });
 
+            debug!("Returning value");
             return Ok(Some(value));
 
         } else {
 
+            debug!("Cache miss for key {:?}", key);
+
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), None);
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, value_clone).await;
             });
 
+            debug!("Returning value");
             return Ok(None);
 
         }
@@ -118,36 +145,50 @@ impl Engine {
         
         if let Some(value) = self.primary.get(&key).await {
 
+            debug!("Cache hit for key {:?} with value {:?}", key, value);
+
+            debug!("Updating secondary storage");
             self.secondary.lock().unwrap().del(key.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), None);
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, value_clone).await;
             });
 
+            debug!("Returning old value");
             return Ok(value);
 
         } else if let Some(value) = self.secondary.lock().unwrap().get(key.clone())? {
 
+            debug!("Cache miss for key {:?} with value {:?}", key, value);
+
+            debug!("Updating secondary storage");
             self.secondary.lock().unwrap().del(key.clone())?;
             
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), None);
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, value_clone).await;
             });
 
+            debug!("Returning old value");
             return Ok(Some(value));
 
         } else {
 
+            debug!("Cache miss for key {:?}", key);
+
             let primary = self.primary.clone();
             let (key_clone, value_clone) = (key.clone(), None);
-            tokio::spawn(async move {
+            tokio::task::spawn(async move {
+                debug!("Updating primary storage");
                 primary.insert(key_clone, value_clone).await;
             });
 
+            debug!("Returning old value");
             return Ok(None);
 
         }

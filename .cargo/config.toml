@@ -2,7 +2,7 @@
 LOG_LEVEL = "trace"
 DATA_DIR = { value = "target/tmp/dev.bin", relative = true}
 PORT = "8654"
-CACHE_SIZE = "10000"
+CACHE_SIZE = "4096"
 CACHE_TTL = "300"
 CACHE_TTI = "60"
 CORS_ALLOWED_ORIGINS = "*"

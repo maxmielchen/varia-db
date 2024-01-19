@@ -179,7 +179,7 @@ async fn http_request_to_bytes(req: HttpRequest<Incoming>) -> Vec<u8> {
 }
 
 fn bytes_to_http_response(bytes: Vec<u8>, cors_allowed_origins: Vec<String>) -> HttpResponse<Full<Bytes>> {
-    HttpResponse::builder().header("Access-Control-Allow-Origin", cors_allowed_origins.join(",")).status(200).body(bytes.into()).unwrap()
+    HttpResponse::builder().header("Access-Control-Allow-Origin", cors_allowed_origins.join(",")).header("Content-Type", "application/json").status(200).body(bytes.into()).unwrap()
 }
 
 fn text_to_http_response(text: String, exit: u16, cors_allowed_origins: Vec<String>) -> HttpResponse<Full<Bytes>> {

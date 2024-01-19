@@ -21,7 +21,7 @@ async fn main() {
 
     let engine = setup::setup_engine(secondary, primary);
 
-    let engine_service = setup::setup_engine_service(engine);
+    let engine_service = setup::setup_engine_service(engine, configuration.cors_allowed_origins);
 
     let web_server = setup::setup_web_server(engine_service, configuration.port).await;
 

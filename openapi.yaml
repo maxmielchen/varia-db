@@ -1,0 +1,142 @@
+openapi: "3.0.0"
+
+info:
+  title: VariaDB
+  version: 0.0.2
+
+servers:
+  - url: http://localhost:8654
+
+paths:
+  /put/{key}:
+    put:
+      summary: Put a value
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Value'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Value'
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+
+  /get/{key}:
+    get:
+      summary: Get a value
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Value'
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+  
+  /del/{key}:
+    delete:
+      summary: Delete a value
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Value'
+        '400':
+          description: Bad Request
+        '500':
+          description: Internal Server Error
+
+  /list:
+    get:
+      summary: List all keys
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+        '500':
+          description: Internal Server Error
+
+components:
+  schemas:
+    Value:
+      oneOf:
+        - $ref: '#/components/schemas/TextValue'
+        - $ref: '#/components/schemas/NumberValue'
+        - $ref: '#/components/schemas/BooleanValue'
+        - $ref: '#/components/schemas/ArrayValue'
+        - $ref: '#/components/schemas/MapValue'
+
+    TextValue:
+      type: object
+      properties:
+        Text:
+          type: string
+
+    NumberValue:
+      type: object
+      properties:
+        Number:
+          type: integer
+
+    BooleanValue:
+      type: object
+      properties:
+        Boolean:
+          type: boolean
+
+    ArrayValue:
+      type: object
+      properties:
+        Array:
+          type: array
+          items:
+            $ref: '#/components/schemas/Value'
+
+    MapValue:
+      type: object
+      properties:
+        Map:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              value:
+                $ref: '#/components/schemas/Value'

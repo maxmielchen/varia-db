@@ -17,6 +17,8 @@ pub struct Configuration {
     pub cache_size: u64,
     pub cache_ttl: u64,
     pub cache_tti: u64,
+
+    pub cors_allowed_origins: Vec<String>,
 }
 
 impl Configuration {
@@ -37,6 +39,8 @@ impl Configuration {
         let cache_ttl = env::var("CACHE_TTL").expect("CACHE_TTL not set").parse::<u64>().expect("CACHE_TTL is not a valid number");
         let cache_tti = env::var("CACHE_TTI").expect("CACHE_TTI not set").parse::<u64>().expect("CACHE_TTI is not a valid number");
 
+        let cors_allowed_origins = env::var("CORS_ALLOWED_ORIGINS").expect("CORS_ALLOWED_ORIGINS not set").split(",").map(|s| s.to_string()).collect::<Vec<String>>();
+
         Self {
             log_level,
             data_dir,
@@ -44,6 +48,7 @@ impl Configuration {
             cache_size,
             cache_ttl,
             cache_tti,
+            cors_allowed_origins,
         }
     }
 }
@@ -89,8 +94,8 @@ pub fn setup_engine(secondary: Disk, primary: Cache<String, Option<Value>>) -> E
     Engine::new(secondary, primary)
 }
 
-pub fn setup_engine_service(engine: Engine) -> EngineService {
-    EngineService::new(engine)
+pub fn setup_engine_service(engine: Engine, cors_allowed_origins: Vec<String>) -> EngineService {
+    EngineService::new(engine, cors_allowed_origins)
 }
 
 pub async fn setup_web_server(engine_service: EngineService, port: u16) -> WebServer {

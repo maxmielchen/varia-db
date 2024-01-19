@@ -24,6 +24,14 @@ impl Engine {
     }
 
     fn key_validation(key: &String) -> Result<(), Error> {
+        if key.len() < 1 {
+            return Err(
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    "Key must be at least 1 character long"
+                )
+            );
+        }
         for c in key.chars() {
             if !c.is_alphanumeric() {
                 return Err(
@@ -215,7 +223,7 @@ impl Engine {
     pub async fn list(&self) -> Result<Vec<String>, Error> {
         info!("LIST");
 
-        debug!("Updating secondary storage");
+        debug!("Use secondary storage");
         debug!("Secondary is poisoned: {:?}", self.secondary.is_poisoned());
         return Ok(self.secondary.lock().unwrap().list()?);
     }

@@ -6,13 +6,13 @@ use std::fs;
 
 fn setup(test_name: &str) -> Disk {
     Disk::new(Path::new(
-        format!("./target/tmp/disk_test{}.bin", test_name).as_str(),
+        format!("./target/tmp/disk_test_{}.bin", test_name).as_str(),
     )).unwrap()
 }
 
 fn teardown(test_name: &str) {
     fs::remove_file(Path::new(
-        format!("./target/tmp/disk_test{}.bin", test_name).as_str(),
+        format!("./target/tmp/disk_test_{}.bin", test_name).as_str(),
     )).unwrap();
 }
 

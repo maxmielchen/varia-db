@@ -7,14 +7,14 @@ use std::fs;
 fn setup(test_name: &str) -> Engine {
     Engine::new(
         Disk::new(Path::new(
-            format!("./target/tmp/engine_test{}.bin", test_name).as_str(),
+            format!("./target/tmp/engine_test_{}.bin", test_name).as_str(),
         )).unwrap(), Cache::new(1000),
     )
 }
 
 fn teardown(test_name: &str) {
     fs::remove_file(Path::new(
-        format!("./target/tmp/engine_test{}.bin", test_name).as_str(),
+        format!("./target/tmp/engine_test_{}.bin", test_name).as_str(),
     )).unwrap();
 }
 

@@ -496,6 +496,9 @@ impl Disk {
     pub fn defrag(&mut self) -> Result<(), Error> {
         self.read_sign()?;
 
+        // TODO: Implement
+
+
         Ok(())
     }
 }

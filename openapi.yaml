@@ -2,7 +2,7 @@ openapi: "3.0.0"
 
 info:
   title: VariaDB
-  version: 0.0.2
+  version: 0.0.3
 
 servers:
   - url: http://localhost:8654
@@ -29,11 +29,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Value'
-        '400':
-          description: Bad Request
-        '500':
-          description: Internal Server Error
+                $ref: '#/components/schemas/Respond'
 
   /get/{key}:
     get:
@@ -50,11 +46,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Value'
-        '400':
-          description: Bad Request
-        '500':
-          description: Internal Server Error
+                $ref: '#/components/schemas/Respond'
   
   /del/{key}:
     delete:
@@ -71,11 +63,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Value'
-        '400':
-          description: Bad Request
-        '500':
-          description: Internal Server Error
+                $ref: '#/components/schemas/Respond'
 
   /list:
     get:
@@ -86,14 +74,22 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: string
-        '500':
-          description: Internal Server Error
+                $ref: '#/components/schemas/Respond'
 
 components:
   schemas:
+
+    Respond:
+      oneOf:
+        - $ref: '#/components/schemas/OptionValue'
+        - type: array
+          items:
+            type: string
+
+    OptionValue:
+      type: '#/components/schemas/Value'
+      nullable: true
+
     Value:
       oneOf:
         - $ref: '#/components/schemas/TextValue'

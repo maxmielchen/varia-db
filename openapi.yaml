@@ -81,16 +81,13 @@ components:
 
     Respond:
       oneOf:
-        - $ref: '#/components/schemas/OptionValue'
+        - $ref: '#/components/schemas/Value'
         - type: array
           items:
             type: string
-
-    OptionValue:
-      type: '#/components/schemas/Value'
-      nullable: true
-
+      
     Value:
+      nullable: true
       oneOf:
         - $ref: '#/components/schemas/TextValue'
         - $ref: '#/components/schemas/NumberValue'

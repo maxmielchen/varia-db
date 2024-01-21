@@ -1,7 +1,7 @@
-pub mod value;
-pub mod disk;
-pub mod engine;
-pub mod weight;
+mod value;
+mod disk;
+mod engine;
+mod weight;
 
 pub use value::Value;
 pub use disk::Disk;

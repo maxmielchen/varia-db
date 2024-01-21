@@ -11,13 +11,13 @@ servers:
         enum:
           - https
           - http
-        description: ''
+        description: 'Scheme'
       host:
         default: localhost
-        description: ''
+        description: 'Host'
       port:
         default: '8654'
-        description: ''
+        description: 'Port'
     description: Default
     
 paths:
@@ -60,7 +60,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Respond'
-                
+
   /del/{key}:
     delete:
       summary: Delete a value

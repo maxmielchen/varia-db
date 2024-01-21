@@ -17,14 +17,16 @@ A key feature of VariaDB is that it is not designed to be used behind a server a
 
 ## How to use VariaDB?
 
-Quick Start:
+VariaDB is shipped as a Docker image. You can pull the image from the GitHub Container Registry. The image is executable on linux/amd64 and linux/arm64.
+
+#### Quick Start
 
 ```bash
 docker pull ghcr.io/maxmielchen/varia-db:latest
 docker run -p 8654:8654 ghcr.io/maxmielchen/varia-db:latest
 ```
 
-Environment Variables:
+#### Environment Variables
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -38,14 +40,16 @@ Environment Variables:
 
 ## Protocol
 
-VariaDB can store key-value pairs. The key is a string, and the value is a typed. 
-A value can be a string, a number, a boolean, or a list of values, or a map of values.
+VariaDB can store key-value pairs. The key is a string, and the value is a typed value. 
+A value can be a string, a number, a boolean, or a list of values, or a map of values. In the some cases, the value is packet in a Respond object.
 [OpenAPI Documentation](openapi.yaml)
 
 #### Values Examples
 
 ```json
-{"Text": "Hello, world!"}
+{
+    "Text": "Hello, world!"
+}
 ```
 
 ```json
@@ -68,7 +72,31 @@ A value can be a string, a number, a boolean, or a list of values, or a map of v
 }
 ```
 
+#### Respond Examples
+
+```json
+{
+  "Value": {"Text": "Hello, world!"}
+}
+```
+
+```json
+{
+  "Array": [ "key1", "key2", "key3" ]
+}
+```
+
 #### Operations
+
+| Operation | HTTP | Type | Respond | Description |
+| --- | --- | --- | --- | --- |
+| `PUT` | `PUT /put/{key}` | `Respond::Value` | `{ "Value": null }` | Stores a value under a key and returns the old value. |
+| `GET` | `GET /get/{key}` | `Respond::Value` | `{ "Value": { "Text": "Hello, world!" } }` | Returns the value stored under a key. |
+| `DEL` | `DELETE /del/{key}` | `Respond::Value` | `{ "Value": { "Text": "Hello, world!" } }` | Deletes the value stored under a key and returns the old value. |
+| `LIST` | `GET /list` | `Respond::Array` | `{ "Array": [ "key1", "key2", "key3" ] }` | Returns a list of all keys.
+
+
+#### cURL Examples
 
 Put:
 ```curl

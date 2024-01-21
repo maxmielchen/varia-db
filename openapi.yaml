@@ -1,12 +1,25 @@
-openapi: "3.0.0"
-
+openapi: 3.0.0
 info:
   title: VariaDB
   version: 0.0.3
-
+  
 servers:
-  - url: http://localhost:8654
-
+  - url: '{scheme}://{host}:{port}'
+    variables:
+      scheme:
+        default: http
+        enum:
+          - https
+          - http
+        description: ''
+      host:
+        default: localhost
+        description: ''
+      port:
+        default: '8654'
+        description: ''
+    description: Default
+    
 paths:
   /put/{key}:
     put:
@@ -47,7 +60,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Respond'
-  
+                
   /del/{key}:
     delete:
       summary: Delete a value
@@ -78,14 +91,12 @@ paths:
 
 components:
   schemas:
-
     Respond:
       oneOf:
         - $ref: '#/components/schemas/Value'
         - type: array
           items:
             type: string
-      
     Value:
       nullable: true
       oneOf:
@@ -94,25 +105,21 @@ components:
         - $ref: '#/components/schemas/BooleanValue'
         - $ref: '#/components/schemas/ArrayValue'
         - $ref: '#/components/schemas/MapValue'
-
     TextValue:
       type: object
       properties:
         Text:
           type: string
-
     NumberValue:
       type: object
       properties:
         Number:
           type: integer
-
     BooleanValue:
       type: object
       properties:
         Boolean:
           type: boolean
-
     ArrayValue:
       type: object
       properties:
@@ -120,7 +127,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Value'
-
     MapValue:
       type: object
       properties:

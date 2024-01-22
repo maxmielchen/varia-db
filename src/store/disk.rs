@@ -246,7 +246,7 @@ impl Disk {
             let mut  buf: [u8; 1] = [0; 1];
             let bytes_read = self.buf_stream.read(&mut buf)?;
             if bytes_read == 0 {
-                panic!("Unexpected end of file");
+                panic!("Unexpected end of file: pos: {}, len: {}, unfill: {}", self.buf_stream.seek(SeekFrom::Current(0))?, len, unfill);
             }
             vec.push(buf[0]);
             unfill -= 1;
@@ -291,8 +291,8 @@ impl Disk {
                 if frame_len > entry_buf.len() as u128 {
                     trace!("Fill gap frame");
                     self.negative_seek(17)?;
-                    self.buf_stream.write(&Self::gap_frame(frame_len - entry_buf.len() as u128))?;
                     self.buf_stream.write(entry_buf.as_slice())?;
+                    self.buf_stream.write(&Self::gap_frame(frame_len - entry_buf.len() as u128))?;
                     break;
                 }
                 if frame_len == entry_buf.len() as u128 {
@@ -405,8 +405,9 @@ impl Disk {
                 self.negative_seek(frame_len as usize)?;
 
                 
-                if let Some(prev_gap_len) = prev_gap {
+                if prev_gap.is_some() && prev_gap.unwrap().checked_add(frame_len).is_some() {
                     trace!("Write marged gap frame");
+                    let prev_gap_len = prev_gap.unwrap();
                     self.negative_seek(prev_gap_len as usize)?;
                     self.buf_stream.write(&Self::gap_frame(prev_gap_len + frame_len))?;
                 } else {
@@ -423,7 +424,7 @@ impl Disk {
 
                 prev_gap = Some(frame_len);
 
-                self.positive_seek(frame_len as usize)?;
+                self.positive_seek(frame_len.clone() as usize)?;
                 self.negative_seek(17)?;
                 continue;
             }
@@ -431,12 +432,13 @@ impl Disk {
             if opt[0] < 17 {
                 let frame_len = opt[0];
 
-                prev_gap = Some(frame_len as u128);
+                prev_gap = Some(frame_len.clone() as u128);
 
                 self.positive_seek(frame_len as usize)?;
                 self.negative_seek(1)?;
                 continue;
             }
+
         }
     }
 

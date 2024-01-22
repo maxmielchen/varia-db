@@ -199,6 +199,57 @@ fn test_very_large_key_2() {
 }
 
 #[test]
+fn test_gap_marging() {
+    let mut disk: Disk = setup("test_gap_marging");
+
+    disk.put("test_key".to_string(), Value::Text("test_value".to_string())).unwrap();
+    disk.put("test_key_2".to_string(), Value::Text("test_value_2".to_string())).unwrap();
+    disk.put("test_key_3".to_string(), Value::Text("test_value_3".to_string())).unwrap();
+    disk.put("test_key_4".to_string(), Value::Text("test_value_4".to_string())).unwrap();
+
+    disk.del("test_key_2".to_string()).unwrap();
+    disk.del("test_key_3".to_string()).unwrap();
+
+    disk.put("test_key_5".to_string(), Value::Text("test_large_value_5".to_string())).unwrap();
+    disk.put("test_key_6".to_string(), Value::Text("test_large_value_6".to_string())).unwrap();
+    disk.put("s".to_string(), Value::Text("s".to_string())).unwrap();
+
+    let result = disk.list().unwrap();
+
+    assert_eq!(result, vec![
+        "test_key".to_string(),
+        "test_key_5".to_string(),
+        "s".to_string(),
+        "test_key_4".to_string(),
+        "test_key_6".to_string(),
+    ]);
+
+    disk.put("test_key".to_string(), Value::Text("test_value".to_string())).unwrap();
+    disk.put("test_key_2".to_string(), Value::Text("test_value_2".to_string())).unwrap();
+    disk.put("test_key_3".to_string(), Value::Text("test_value_3".to_string())).unwrap();
+    disk.put("test_key_4".to_string(), Value::Text("test_value_4".to_string())).unwrap();
+
+    disk.del("test_key_2".to_string()).unwrap();
+    disk.del("test_key_3".to_string()).unwrap();
+
+    disk.put("test_key_5".to_string(), Value::Text("test_large_value_5".to_string())).unwrap();
+    disk.put("test_key_6".to_string(), Value::Text("test_large_value_6".to_string())).unwrap();
+    disk.put("s".to_string(), Value::Text("s".to_string())).unwrap();
+
+    let result = disk.list().unwrap();
+
+    assert_eq!(result, vec![
+        "test_key".to_string(),
+        "test_key_5".to_string(),
+        "s".to_string(),
+        "test_key_4".to_string(),
+        "test_key_6".to_string(),
+    ]);
+
+    //teardown("test_gap_marging");
+}
+
+#[test]
 fn test_gapping() {
     let mut disk: Disk = setup("test_gapping");
 

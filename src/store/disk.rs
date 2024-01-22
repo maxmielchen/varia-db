@@ -375,6 +375,8 @@ impl Disk {
         }
         let key_buf = key_buf.unwrap();
 
+        let mut prev_gap: Option<u128> = None;
+
         loop {
             let mut opt: [u8; 1] = [0; 1];
             let bytes_read = self.buf_stream.read(&mut opt)?;
@@ -402,13 +404,39 @@ impl Disk {
                 self.positive_seek(value_len as usize)?;
                 self.negative_seek(frame_len as usize)?;
 
-                trace!("Write gap frame");
-                self.buf_stream.write(&Self::gap_frame(frame_len))?;
+                
+                if let Some(prev_gap_len) = prev_gap {
+                    trace!("Write marged gap frame");
+                    self.negative_seek(prev_gap_len as usize)?;
+                    self.buf_stream.write(&Self::gap_frame(prev_gap_len + frame_len))?;
+                } else {
+                    trace!("Write gap frame");
+                    self.buf_stream.write(&Self::gap_frame(frame_len))?;
+                }
                 return Ok(());
             }
-            
-            trace!("Skip gap frame");
-            self.seek_gap(opt[0])?;
+
+            if opt[0] == 17 {
+                let mut buf: [u8; 16] = [0; 16];
+                self.buf_stream.read(&mut buf)?;
+                let frame_len = Self::big_gap_frame_len(buf)?;
+
+                prev_gap = Some(frame_len);
+
+                self.positive_seek(frame_len as usize)?;
+                self.negative_seek(17)?;
+                continue;
+            }
+
+            if opt[0] < 17 {
+                let frame_len = opt[0];
+
+                prev_gap = Some(frame_len as u128);
+
+                self.positive_seek(frame_len as usize)?;
+                self.negative_seek(1)?;
+                continue;
+            }
         }
     }
 

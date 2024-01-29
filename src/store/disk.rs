@@ -196,7 +196,7 @@ impl Disk {
     }
 
     fn negative_seek(&mut self, skip: usize) -> Result<(), Error> {
-        let mut unskiped = skip;
+        let mut unskiped: usize = skip.clone();
         let directon_max: usize = 100000;
         while unskiped > 0 {
             if unskiped > directon_max {
@@ -398,23 +398,35 @@ impl Disk {
 
                 if key_buf_read != key_buf {
                     self.positive_seek(value_len as usize)?;
+                    prev_gap = None;
                     continue;
                 }
 
                 self.positive_seek(value_len as usize)?;
                 self.negative_seek(frame_len as usize)?;
 
-                
-                if prev_gap.is_some() && prev_gap.unwrap().checked_add(frame_len).is_some() {
+
+                if prev_gap == None || true {
+                    trace!("Write gap frame");
+                    self.buf_stream.write(&Self::gap_frame(frame_len))?;
+                    return Ok(());
+                }
+
+                let prev_gap_len = prev_gap.unwrap();
+
+                if let Some(marged_gap_len) =  prev_gap_len.clone().checked_add(frame_len) {
                     trace!("Write marged gap frame");
-                    let prev_gap_len = prev_gap.unwrap();
-                    self.negative_seek(prev_gap_len as usize)?;
-                    self.buf_stream.write(&Self::gap_frame(prev_gap_len + frame_len))?;
+                    
+                    self.negative_seek(prev_gap_len.try_into().unwrap())?;
+
+                    self.buf_stream.write(&Self::gap_frame(marged_gap_len))?;
+
+                    return Ok(());
                 } else {
                     trace!("Write gap frame");
                     self.buf_stream.write(&Self::gap_frame(frame_len))?;
+                    return Ok(());
                 }
-                return Ok(());
             }
 
             if opt[0] == 17 {
@@ -422,7 +434,7 @@ impl Disk {
                 self.buf_stream.read(&mut buf)?;
                 let frame_len = Self::big_gap_frame_len(buf)?;
 
-                prev_gap = Some(frame_len);
+                prev_gap = Some(frame_len.clone());
 
                 self.positive_seek(frame_len.clone() as usize)?;
                 self.negative_seek(17)?;

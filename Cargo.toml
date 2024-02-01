@@ -17,3 +17,5 @@ serde_json = "1.0.108"
 postcard = { version = "1.0.8", features = ["alloc"] }
 
 moka = { version = "0.12.2", features = ["future"] }
+
+objstr = "0.1.1"

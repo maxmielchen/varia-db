@@ -5,16 +5,24 @@ use varia_db::store::{Disk, Engine, Value};
 use std::fs;
 
 fn setup(test_name: &str) -> Engine {
+    let name = format!(".test/engine_test/{}.bin", name);
+    let path = Path::new(
+        name.as_str()
+    );
+    if path.exists() {
+        std::fs::remove_file(
+            name.as_str()
+        ).unwrap();
+    }
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
     Engine::new(
-        Disk::new(Path::new(
-            format!("./target/tmp/engine_test_{}.bin", test_name).as_str(),
-        )).unwrap(), Cache::new(1000),
+        Disk::new(path).unwrap(), Cache::new(1000),
     )
 }
 
 fn teardown(test_name: &str) {
     fs::remove_file(Path::new(
-        format!("./target/tmp/engine_test_{}.bin", test_name).as_str(),
+        format!(".test/engine_test/{}.bin", test_name).as_str(),
     )).unwrap();
 }
 

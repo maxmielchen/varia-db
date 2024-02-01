@@ -7,11 +7,19 @@ use std::fs;
 
 #[allow(dead_code)]
 fn setup(test_name: &str) -> EngineService {
+    let name = format!(".test/engine_service_test/{}.bin", name);
+    let path = Path::new(
+        name.as_str()
+    );
+    if path.exists() {
+        std::fs::remove_file(
+            name.as_str()
+        ).unwrap();
+    }
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
     EngineService::new(
         Engine::new(
-            Disk::new(Path::new(
-                format!("./target/tmp/engine_test_{}.bin", test_name).as_str(),
-            )).unwrap(), Cache::new(1000),
+            Disk::new(path).unwrap(), Cache::new(1000),
         ),
         vec!["*".to_string()],
     )
@@ -20,7 +28,7 @@ fn setup(test_name: &str) -> EngineService {
 #[allow(dead_code)]
 fn teardown(test_name: &str) {
     fs::remove_file(Path::new(
-        format!("./target/tmp/engine_test_{}.bin", test_name).as_str(),
+        format!(".test/engine_service_test/{}.bin", test_name).as_str(),
     )).unwrap();
 }
 

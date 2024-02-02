@@ -7,7 +7,7 @@ use std::fs;
 
 #[allow(dead_code)]
 fn setup(test_name: &str) -> EngineService {
-    let name = format!(".test/engine_service_test/{}.bin", name);
+    let name = format!(".test/engine_service_test/{}.bin", test_name);
     let path = Path::new(
         name.as_str()
     );

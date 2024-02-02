@@ -5,7 +5,7 @@ use varia_db::store::{Disk, Value};
 use std::fs;
 
 fn setup(test_name: &str) -> Disk {
-    let name = format!(".test/disk_test/{}.bin", name);
+    let name = format!(".test/disk_test/{}.bin", test_name);
     let path = Path::new(
         name.as_str()
     );

@@ -5,7 +5,7 @@ use varia_db::store::{Disk, Engine, Value};
 use std::fs;
 
 fn setup(test_name: &str) -> Engine {
-    let name = format!(".test/engine_test/{}.bin", name);
+    let name = format!(".test/engine_test/{}.bin", test_name);
     let path = Path::new(
         name.as_str()
     );

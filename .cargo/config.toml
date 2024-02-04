@@ -1,6 +1,6 @@
 [env]
 LOG_LEVEL = "trace"
-DATA_DIR = { value = "target/tmp/dev.bin", relative = true}
+DATA_DIR = { value = ".test/dev.bin", relative = true}
 PORT = "8654"
 CACHE_SIZE = "4096"
 CACHE_TTL = "300"

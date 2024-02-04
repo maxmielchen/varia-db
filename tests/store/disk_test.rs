@@ -5,14 +5,22 @@ use varia_db::store::{Disk, Value};
 use std::fs;
 
 fn setup(test_name: &str) -> Disk {
-    Disk::new(Path::new(
-        format!("./target/tmp/disk_test_{}.bin", test_name).as_str(),
-    )).unwrap()
+    let name = format!(".test/disk_test/{}.bin", test_name);
+    let path = Path::new(
+        name.as_str()
+    );
+    if path.exists() {
+        std::fs::remove_file(
+            name.as_str()
+        ).unwrap();
+    }
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    Disk::new(path).unwrap()
 }
 
 fn teardown(test_name: &str) {
     fs::remove_file(Path::new(
-        format!("./target/tmp/disk_test_{}.bin", test_name).as_str(),
+        format!(".test/disk_test/{}.bin", test_name).as_str(),
     )).unwrap();
 }
 
@@ -196,6 +204,43 @@ fn test_very_large_key_2() {
     assert_eq!(result, Some(value));
 
     teardown("test_very_large_key_2");
+}
+
+#[test]
+fn test_gap_marging() {
+    // let mut disk: Disk = setup("test_gap_marging");
+
+    // disk.put("test_key".to_string(), Value::Text("test_value".to_string())).unwrap();
+    // disk.put("test_key_2".to_string(), Value::Text("test_value_2".to_string())).unwrap();
+    // disk.put("test_key_3".to_string(), Value::Text("test_value_3".to_string())).unwrap();
+    // disk.put("test_key_4".to_string(), Value::Text("test_value_4".to_string())).unwrap();
+
+    // disk.del("test_key_2".to_string()).unwrap();
+    // disk.del("test_key_3".to_string()).unwrap();
+
+    // disk.put("test_key_5".to_string(), Value::Text("test_large_value_5".to_string())).unwrap();
+    // disk.put("test_key_6".to_string(), Value::Text("test_large_value_6".to_string())).unwrap();
+    // disk.put("s".to_string(), Value::Text("s".to_string())).unwrap();
+
+    // let result = disk.list().unwrap();
+
+
+    // disk.put("test_key".to_string(), Value::Text("test_value".to_string())).unwrap();
+    // disk.put("test_key_2".to_string(), Value::Text("test_value_2".to_string())).unwrap();
+    // disk.put("test_key_3".to_string(), Value::Text("test_value_3".to_string())).unwrap();
+    // disk.put("test_key_4".to_string(), Value::Text("test_value_4".to_string())).unwrap();
+
+    // disk.del("test_key_2".to_string()).unwrap();
+    // disk.del("test_key_3".to_string()).unwrap();
+
+    // disk.put("test_key_5".to_string(), Value::Text("test_large_value_5".to_string())).unwrap();
+    // disk.put("test_key_6".to_string(), Value::Text("test_large_value_6".to_string())).unwrap();
+    // disk.put("s".to_string(), Value::Text("s".to_string())).unwrap();
+
+    // let result = disk.list().unwrap();
+
+
+    // teardown("test_gap_marging");
 }
 
 #[test]
